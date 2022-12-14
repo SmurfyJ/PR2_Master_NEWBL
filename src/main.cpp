@@ -1,6 +1,7 @@
 #include <avr/interrupt.h>
 #include <Arduino.h>
 
+/* Setup for USART baud calc */
 #define FOSC 16000000UL
 #define BAUD 9600UL
 #define MYUBRR FOSC/16/BAUD-1
@@ -11,12 +12,11 @@ void usart_send(const char *msg);
 void usart_recieve();
 void validate_rx(const char rx[]);
 void spi_send(int pwm_value);
-void spi_recieve();
 
-const char *status_text[4] = {            // Pointer
+/* Our outpus msgs */
+const char *status_text[4] = {
         "Geben Sie einen Integer zwischen 0 und 255 ein: ",       // CR besser als LF?
         "FEHLER: Eingabe hat das falsche Format.\n",
-        "FEHLER: LED nicht erreichbar.\n",
         "Helligkeit der LED erfolgreich geändert.\n\n"
 };
 
@@ -26,35 +26,42 @@ uint16_t new_pwm_value = 0;
 uint16_t current_pwm_value = 0;
 
 /**
- * pio device monitor -f send_on_enter -f colorize --echo
+ * @note: pio device monitor -f send_on_enter -f colorize --echo
  */
 
-int main () {
+int main() {
 
     usart_init();
     spi_init();
 
     while (1) {
 
-        usart_send(status_text[0]);         // wait for user input
-        usart_recieve();
-        validate_rx(recieve);
-        if(current_pwm_value != new_pwm_value) {
-            spi_send(new_pwm_value);
+        usart_send(status_text[0]);                             // greetings
+        usart_recieve();                                             // wait for user input
+        validate_rx(recieve);                                    // validate input
+        if (current_pwm_value != new_pwm_value) {
+            spi_send(new_pwm_value);                       // send out new pwm
         }
-        _delay_ms(2000);
+        _delay_ms(1000);                                        // delay for good measure
 
     }
 
 }
 
+/**
+ * Initiate USART registers
+ */
 void usart_init() {
 
-    UBRR0 = MYUBRR;                             // Set clock
-    UCSR0B |= (1 << RXEN0) | (1 << TXEN0);      // enable reciever & transmitter
+    UBRR0 = MYUBRR;                                         // Set clock
+    UCSR0B |= (1 << RXEN0) | (1 << TXEN0);                  // enable reciever & transmitter
 
 }
 
+/**
+ * Send messages to console
+ * @param msg
+ */
 void usart_send(const char *msg) {
 
     for (int i = 0; i < strlen(msg); ++i) {
@@ -64,13 +71,16 @@ void usart_send(const char *msg) {
 
 }
 
+/**
+ * Recieve input from console
+ */
 void usart_recieve() {
 
     UCSR0B |= (1 << RXEN0);
-    for (char & i : recieve) {
+    for (char &i: recieve) {
         while (!(UCSR0A & (1 << RXC0)));
         i = UDR0;
-        if(i == 13) { // CR
+        if (i == 13) {                                          // CR
             break;
         }
     }
@@ -78,6 +88,10 @@ void usart_recieve() {
 
 }
 
+/**
+ * Check whether our input value is valid
+ * @param rx
+ */
 void validate_rx(const char rx[]) {
 
     uint8_t valid = 0;
@@ -95,36 +109,36 @@ void validate_rx(const char rx[]) {
         }
     }
 
-    if(!valid || new_pwm_value > 255) {
+    if (!valid || new_pwm_value > 255) {
         new_pwm_value = current_pwm_value;
         usart_send(status_text[1]);
     }
 
 }
 
+/**
+ * Initiate SPI regsiters
+ */
 void spi_init() {
-    // Set SS, MOSI and SCK output (all others input)
-    DDRB = (1 << DDB2) | (1 << DDB3) | (1 << DDB5);
-    // Enable SPI, Master, set clock rate fck/16
-    SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPR0);
+
+    DDRB = (1 << DDB2) | (1 << DDB3) | (1 << DDB5);             // Set SS, MOSI and SCK output (all others input)
+    SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPR0);              // Enable SPI, Master, set clock rate fck/16
+
 }
 
 void spi_send(int pwm_value) {
-    // Select Slave (SS Low)
-    PORTB &= ~(1 << PORTB2);
 
-//    SPDR = 'V';
-//    while (!(SPSR & (1 << SPIF)));
+    PORTB &= ~(1 << PORTB2);                                    // slave select (SS Low)
 
+    /* send a char before our value, fixes 255 madness */
+    SPDR = 'V';
+    while (!(SPSR & (1 << SPIF)));
+
+    /* send our pwm value */
     SPDR = (uint8_t) pwm_value;
     while (!(SPSR & (1 << SPIF)));
 
     current_pwm_value = pwm_value;
+    PORTB |= (1 << PORTB2);                                     // slave deselect
 
-    // slave deselect
-    PORTB |= (1 << PORTB2);
-
-}
-
-void spi_recieve() {
 }
