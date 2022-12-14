@@ -22,8 +22,7 @@ const char *status_text[4] = {
 
 char recieve[4];
 
-uint16_t new_pwm_value = 0;
-uint16_t current_pwm_value = 0;
+uint16_t new_pwm_value, current_pwm_value = 0;
 
 /**
  * @note: pio device monitor -f send_on_enter -f colorize --echo
@@ -36,11 +35,12 @@ int main() {
 
     while (1) {
 
-        usart_send(status_text[0]);                             // greetings
-        usart_recieve();                                             // wait for user input
+        usart_send(status_text[0]);                            // greetings
+        usart_recieve();                                            // wait for user input
         validate_rx(recieve);                                    // validate input
         if (current_pwm_value != new_pwm_value) {
             spi_send(new_pwm_value);                       // send out new pwm
+            usart_send(status_text[2]);
         }
         _delay_ms(1000);                                        // delay for good measure
 
@@ -53,8 +53,8 @@ int main() {
  */
 void usart_init() {
 
-    UBRR0 = MYUBRR;                                         // Set clock
-    UCSR0B |= (1 << RXEN0) | (1 << TXEN0);                  // enable reciever & transmitter
+    UBRR0 = MYUBRR;                                                 // Set clock
+    UCSR0B |= (1 << RXEN0) | (1 << TXEN0);                          // enable reciever & transmitter
 
 }
 
@@ -80,7 +80,7 @@ void usart_recieve() {
     for (char &i: recieve) {
         while (!(UCSR0A & (1 << RXC0)));
         i = UDR0;
-        if (i == 13) {                                          // CR
+        if (i == 13) {                                              // CR
             break;
         }
     }
