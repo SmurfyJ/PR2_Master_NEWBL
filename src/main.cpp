@@ -98,12 +98,12 @@ void validate_rx(const char rx[]) {
     new_pwm_value = 0;
 
     for (int i = 0; i <= 3; i++) {
-        if (rx[i] > 47 && rx[i] < 58) {
+        if (rx[i] > 47 && rx[i] < 58) {                             // 0 - 9
             new_pwm_value = (10 * new_pwm_value) + (rx[i] - 48);
-        } else if ((rx[i] == '\n') || (rx[i] == '\r')) {
+        } else if ((rx[i] == '\n') || (rx[i] == '\r')) {            // CR / LF
             valid = 1;
             break;
-        } else {
+        } else {                                                    // other
             new_pwm_value = 256;
             break;
         }
