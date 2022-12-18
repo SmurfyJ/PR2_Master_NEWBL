@@ -21,17 +21,21 @@ const char *status_text[4] = {
 };
 
 char recieve[4];
-
 uint16_t new_pwm_value, current_pwm_value = 0;
 
 /**
  * @note: pio device monitor -f send_on_enter -f colorize --echo
+ * PB:
+ * D10 - D13 -> D10 - D13
+ * D9 LED
+ * 5V -> Vin / GND -> GND
  */
 
 int main() {
 
     usart_init();
     spi_init();
+    spi_send(0);
 
     while (1) {
 
@@ -130,7 +134,7 @@ void spi_send(int pwm_value) {
 
     PORTB &= ~(1 << PORTB2);                                    // slave select (SS Low)
 
-    /* send a char before our value, fixes 255 madness */
+    /* send a char before our value, fixes 255 error */
     SPDR = 'V';
     while (!(SPSR & (1 << SPIF)));
 
